@@ -2,7 +2,8 @@
 .venv/
 env/
 venv/
-
+dataset/processed/img
+swanlog/
 # 忽略 Python 运行时产生的缓存文件
 __pycache__/
 *.py[cod]

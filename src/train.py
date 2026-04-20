@@ -6,6 +6,8 @@ import torch.optim as optim
 import os
 from tqdm import tqdm
 from model import CNN_LSTM_Model
+import swanlab
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"当前使用的设备: {device}")
@@ -49,18 +51,18 @@ class BearingDataset(Dataset):
         return img_tensor, label_tensor
 
 
-def get_dataloaders(data_dir, batch_size=32):
+def get_dataloaders_without_noise(data_dir, batch_size=32):
     # 实例化三个 Dataset
     train_dataset = BearingDataset(
-        os.path.join(data_dir, "2d/X_train_2d_mapped.npy"),
+        os.path.join(data_dir, "2d/withoutNoise/X_train_2d_mapped.npy"),
         os.path.join(data_dir, "label/y_train.npy")
     )
     val_dataset = BearingDataset(
-        os.path.join(data_dir, "2d/X_val_2d_mapped.npy"),
+        os.path.join(data_dir, "2d/withoutNoise/X_val_2d_mapped.npy"),
         os.path.join(data_dir, "label/y_val.npy")
     )
     test_dataset = BearingDataset(
-        os.path.join(data_dir, "2d/X_test_2d_mapped.npy"),
+        os.path.join(data_dir, "2d/withoutNoise/X_test_2d_mapped.npy"),
         os.path.join(data_dir, "label/y_test.npy")
     )
 
@@ -71,6 +73,27 @@ def get_dataloaders(data_dir, batch_size=32):
 
     return train_loader, val_loader, test_loader
 
+def get_dataloaders_with_noise(data_dir, batch_size=32):
+    # 实例化三个 Dataset
+    train_dataset = BearingDataset(
+        os.path.join(data_dir, "2d/withNoise/X_train_2d_mapped.npy"),
+        os.path.join(data_dir, "label/y_train.npy")
+    )
+    val_dataset = BearingDataset(
+        os.path.join(data_dir, "2d/withNoise/X_val_2d_mapped.npy"),
+        os.path.join(data_dir, "label/y_val.npy")
+    )
+    test_dataset = BearingDataset(
+        os.path.join(data_dir, "2d/withNoise/X_test_2d_mapped.npy"),
+        os.path.join(data_dir, "label/y_test.npy")
+    )
+
+    # 创建 DataLoader
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+
+    return train_loader, val_loader, test_loader
 
 def train_model(model, train_loader, val_loader, epochs=50, lr=0.001, save_path="best_model.pth"):
     # 2. 定义损失函数和优化器
@@ -110,7 +133,7 @@ def train_model(model, train_loader, val_loader, epochs=50, lr=0.001, save_path=
 
         epoch_train_loss = train_loss / len(train_loader.dataset)
         epoch_train_acc = 100.0 * train_correct / train_total
-
+        
         # --- 验证阶段 ---
         model.eval()
         val_loss = 0.0
@@ -133,7 +156,13 @@ def train_model(model, train_loader, val_loader, epochs=50, lr=0.001, save_path=
         
         # 更新学习率
         scheduler.step(epoch_val_loss)
-
+        swanlab.log({
+            "train_loss": epoch_train_loss,
+            "train_acc": epoch_train_acc,
+            "val_loss": epoch_val_loss,
+            "val_acc": epoch_val_acc,
+            "learning_rate": optimizer.param_groups[0]['lr']
+        }, step=epoch)
         # 打印统计数据
         print(f"Epoch [{epoch+1}/{epochs}] "
               f"Train Loss: {epoch_train_loss:.4f} Acc: {epoch_train_acc:.2f}% | "
@@ -143,7 +172,7 @@ def train_model(model, train_loader, val_loader, epochs=50, lr=0.001, save_path=
         if epoch_val_acc > best_val_acc:
             best_val_acc = epoch_val_acc
             torch.save(model.state_dict(), save_path)
-            print(f"⭐ 发现更好的模型，已保存至 {save_path}")
+            print(f"发现更好的模型，已保存至 {save_path}")
 
     print(f"训练完成！最佳验证集准确率: {best_val_acc:.2f}%")
 

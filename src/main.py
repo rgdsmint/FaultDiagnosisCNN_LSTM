@@ -4,21 +4,28 @@ from train import *
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
+import swanlab
 
-def main(): 
+batchSize = 64
+lr = 0.001
+epoch = 50
+numClasses = 10  # 假设为 10 类故障
+
+def main(is_Noise=False): 
     # 1. 路径与配置参数
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     datasetDir = "dataset/processed"   # 数据存放路径
-    modelSavePath = "best_cnn_lstm.pth"
-    batchSize = 64
-    lr = 0.001
-    epoch = 50
-    numClasses = 10  # 假设为 10 类故障
-
+    modelSavePath = "best_cnn_lstm_" + ("with_noise" if is_Noise else "without_noise") + ".pth"
+    
     # 2. 获取数据加载器
     # 确保 data/processed 下已经有 X_train_2d_mapped.npy 等文件
     print("--- 正在初始化数据加载器 ---")
-    train_loader, val_loader, test_loader = get_dataloaders(datasetDir, batch_size=batchSize)
+    if is_Noise == False:
+        print(">>> 选择了无噪声数据集")
+        train_loader, val_loader, test_loader = get_dataloaders_without_noise(datasetDir, batch_size=batchSize)
+    else:
+        print(">>> 选择了有噪声数据集")
+        train_loader, val_loader, test_loader = get_dataloaders_with_noise(datasetDir, batch_size=batchSize)
 
     # 3. 初始化模型
     print("--- 正在构建 CNN-LSTM 网络 ---")
@@ -57,6 +64,7 @@ def validate(model, modelSavePath, test_loader):
             test_correct += (predicted == labels).sum().item()
 
     final_acc = 100.0 * test_correct / test_total
+    swanlab.log({"test_accuracy": final_acc})
     print(f"测试集最终准确率 (Test Accuracy): {final_acc:.2f}%")
 
 
@@ -78,14 +86,29 @@ def plot_confusion_matrix(model, test_loader, device, classes):
     cm = confusion_matrix(all_labels, all_preds)
     
     # 绘图
-    plt.figure(figsize=(10, 8))
+    plt.figure(figsize=(10, 8), dpi=300)
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
                 xticklabels=classes, yticklabels=classes)
     plt.xlabel('Predicted Labels')
     plt.ylabel('True Labels')
     plt.title('Confusion Matrix - Bearing Fault Diagnosis')
-    plt.show()
-
-if __name__ == "__main__":
-    main()
+    swanlab.log({"confusion_matrix": swanlab.Image(plt)})
+    plt.savefig("confusion_matrix_with_noise.png" if is_Noise else "confusion_matrix_without_noise.png")  # 保存混淆矩阵图像
     
+if __name__ == "__main__":
+    is_Noise = True  # 设置为 True 则使用有噪声数据集，False 则使用无噪声数据集
+    swanlab.init(
+        project="FaultDiagnosisCNN_LSTM", # 项目名称
+        workspace="rgdsmint", 
+        experiment_name="train_round_with_noise" if is_Noise else "train_round_without_noise",
+        config={ # 记录超参数，方便以后对比
+            "learning_rate": lr,
+            "epochs": epoch,
+            "batch_size": batchSize,
+            "model": "CNN-LSTM",
+            "input_size": "64x64",
+            "precision": "float32-mapped"
+        }
+    )
+    main(is_Noise)
+    swanlab.finish()
