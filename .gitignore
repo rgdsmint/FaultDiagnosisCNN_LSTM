@@ -1,0 +1,9 @@
+# 忽略 uv 和虚拟环境文件夹（最重要的一条！）
+.venv/
+env/
+venv/
+dataset/processed/
+# 忽略 Python 运行时产生的缓存文件
+__pycache__/
+*.py[cod]
+*$py.class
