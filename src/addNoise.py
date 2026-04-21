@@ -1,67 +1,70 @@
 import numpy as np
 import os
+import matplotlib.pyplot as plt
 
-def add_gaussian_noise_vectorized(x_data, snr_db=0):
+# 配置路径
+INPUT_DIR = 'dataset/processed/1d'
+OUTPUT_DIR = 'dataset/processed/1d/withNoise'
+SNR_DB = 0  # 噪声强度，0dB 代表噪声功率等于信号功率。数值越小噪声越大。
+
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+def add_white_gaussian_noise(signal, snr_db):
     """
-    对整个 numpy 数组添加高斯白噪声
-    :param x_data: 形状为 (N, 1, 1024) 的 1D 信号数组
-    :param snr_db: 信噪比 (dB)，0 表示噪声和信号等强，10 表示信号强，-5 表示噪声极强
+    为信号添加高斯白噪声
     """
-    # 转换为 float64 进行计算以防溢出，计算完再转回 float32
-    x_data = x_data.astype(np.float64)
+    # 计算信号功率: Ps = sum(x^2) / N
+    # 对 (1024, 4) 这种多通道数据，我们按通道计算功率
+    shape = signal.shape
+    signal_power = np.mean(signal**2, axis=0) # 4个通道的功率
     
-    # 计算每个样本的信号功率 (针对 1024 个点)
-    # axis=(1,2) 对应 (1, 1024) 部分
-    sig_power = np.mean(x_data**2, axis=(1, 2), keepdims=True)
+    # 根据 SNR 公式计算噪声功率: Pn = Ps / 10^(SNR/10)
+    noise_power = signal_power / (10 ** (snr_db / 10))
     
-    # 根据 SNR 公式计算噪声功率: P_noise = P_signal / 10^(SNR/10)
-    noise_power = sig_power / (10**(snr_db / 10.0))
+    # 生成噪声: 均值为 0，标准差为 sqrt(Pn)
+    noise = np.random.normal(0, np.sqrt(noise_power), size=shape)
     
-    # 生成高斯噪声，形状与 x_data 一致
-    noise = np.random.normal(0, np.sqrt(noise_power), x_data.shape)
-    
-    return (x_data + noise).astype(np.float32)
+    return signal + noise
 
-def process_noise_task(input_dir, output_dir, snr_db=0):
-    # 1. 确保输出目录存在
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-        print(f"已创建新目录: {output_dir}")
-
-    # 2. 定义要处理的文件
-    files_to_process = ["X_train.npy", "X_val.npy", "X_test.npy"]
-
-    print(f"--- 开始添加噪声 (SNR: {snr_db}dB) ---")
+def process():
+    print(f"开始添加噪声 (SNR = {SNR_DB}dB)...")
     
-    for filename in files_to_process:
-        input_path = os.path.join(input_dir, filename)
-        output_path = os.path.join(output_dir, filename)
-
-        if not os.path.exists(input_path):
-            print(f"跳过：找不到文件 {input_path}")
+    for s in ['train', 'val', 'test']:
+        x_path = os.path.join(INPUT_DIR, f'x_{s}.npy')
+        y_path = os.path.join(INPUT_DIR, f'y_{s}.npy')
+        
+        if not os.path.exists(x_path):
             continue
+            
+        x_data = np.load(x_path)
+        y_data = np.load(y_path)
+        
+        # 对每一个样本添加噪声
+        x_noisy = np.array([add_white_gaussian_noise(sample, SNR_DB) for sample in x_data])
+        
+        # 保存到新目录
+        np.save(os.path.join(OUTPUT_DIR, f'x_{s}.npy'), x_noisy.astype(np.float32))
+        np.save(os.path.join(OUTPUT_DIR, f'y_{s}.npy'), y_data) # 标签保持不变
+        
+        print(f" - {s} 集已完成，保存至 {OUTPUT_DIR}")
 
-        # 加载无噪原始数据
-        print(f"正在读取: {filename}...")
-        x_clean = np.load(input_path)
-
-        # 添加噪声
-        x_noised = add_gaussian_noise_vectorized(x_clean, snr_db)
-
-        # 保存到新路径 (不会覆盖原文件，因为目录不同)
-        np.save(output_path, x_noised)
-        print(f"已保存带噪文件至: {output_path}")
-
-if __name__ == "__main__":
-    # 路径配置
-    INPUT_DIR = "dataset/processed/1d/withoutNoise"
-    OUTPUT_DIR = "dataset/processed/1d/withNoise"
+    # --- 可视化对比 ---
+    raw_sample = np.load(os.path.join(INPUT_DIR, 'x_train.npy'))[0]
+    noisy_sample = np.load(os.path.join(OUTPUT_DIR, 'x_train.npy'))[0]
     
-    # 设置信噪比
-    # 0dB: 强噪声环境（适合展示模型强大的鲁棒性）
-    # 6dB: 中等噪声
-    # -5dB: 极端恶劣环境
-    target_snr = 0 
+    plt.figure(figsize=(12, 6))
+    plt.subplot(2, 1, 1)
+    plt.plot(raw_sample[:, 0], label='Raw X-Axis')
+    plt.title("Original Signal (Clean)")
+    plt.legend()
     
-    process_noise_task(INPUT_DIR, OUTPUT_DIR, snr_db=target_snr)
-    print("\n所有 1D 数据加噪任务已完成！")
+    plt.subplot(2, 1, 2)
+    plt.plot(noisy_sample[:, 0], label='Noisy X-Axis', color='orange')
+    plt.title(f"Noisy Signal (SNR = {SNR_DB}dB)")
+    plt.legend()
+    
+    plt.tight_layout()
+    plt.show()
+
+if __name__ == '__main__':
+    process()

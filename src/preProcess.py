@@ -1,98 +1,58 @@
-import scipy.io
-import numpy as np
 import os
-from sklearn.model_selection import train_test_split
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
 
-def prepare_data_flexible(root_dir, base_save_dir):
-    X_all, y_all = [], []
-    # 显式初始化 Normal 为 0
-    label_map = {"Normal": 0}
-    current_label = 1
+# 配置
+RAW_DIR = 'dataset/raw_data'
+SAVE_DIR = 'dataset/processed/1d'
+WINDOW_SIZE = 1024  # 如果觉得 5Hz 效果不好可改为 2048
+LABEL_MAP = {'H': 0, 'BF': 1, 'BOW': 2, 'BROKEN': 3, 'MISAL': 4, 'UNBAL': 5}
 
-    # 根据你的要求更新目录
-    # 1D 数据目录
-    x_save_dir = os.path.join(base_save_dir, "1d", "withoutNoise")
-    # 标签目录
-    y_save_dir = os.path.join(base_save_dir, "label")
+os.makedirs(SAVE_DIR, exist_ok=True)
 
-    print("--- 开始扫描文件夹并提取原始信号 ---")
+def preprocess():
+    sets = {'train': [[], []], 'val': [[], []], 'test': [[], []]}
+    files = [f for f in os.listdir(RAW_DIR) if f.endswith('.txt')]
     
-    # 1. 遍历并建立标签映射
-    for root, dirs, files in os.walk(root_dir):
-        mat_files = [f for f in files if f.endswith('.mat')]
-        if not mat_files:
-            continue
-            
-        rel_path = os.path.relpath(root, root_dir)
+    print(f"开始处理 {len(files)} 个文件...")
+
+    for file_name in tqdm(files):
+        label = LABEL_MAP[file_name.split('_')[0]]
+        df = pd.read_csv(os.path.join(RAW_DIR, file_name), skiprows=18, sep='\s+', header=None)
         
-        # 统一命名逻辑
-        if rel_path == "." or "Normal" in rel_path:
-            cat_name = "Normal"
-        else:
-            cat_name = rel_path.replace(os.sep, "_")
+        time_col = df.iloc[:, 0].values
+        data_cols = df.iloc[:, 1:5].values # X, Y, Z, Sound
+        
+        # 自动检测 5 段数据的重置点
+        resets = np.where(np.diff(time_col) < 0)[0] + 1
+        boundaries = np.concatenate(([0], resets, [len(df)]))
+        
+        for i in range(len(boundaries) - 1):
+            # 提取单段 (Trial)
+            seg = data_cols[boundaries[i]:boundaries[i+1]]
             
-        if cat_name not in label_map:
-            label_map[cat_name] = current_label
-            current_label += 1
+            # 分通道归一化 (Z-score)
+            seg = (seg - seg.mean(axis=0)) / (seg.std(axis=0) + 1e-9)
             
-        target_label = label_map[cat_name]
-        print(f"检测到类别: {cat_name.ljust(15)} | 标签: {target_label} | 文件数: {len(mat_files)}")
+            # 0 重叠切片
+            num_samples = len(seg) // WINDOW_SIZE
+            samples = [seg[s*WINDOW_SIZE : (s+1)*WINDOW_SIZE] for s in range(num_samples)]
+            
+            # 按照 Group 划分集合
+            if i < 3:    target = 'train' # Group 1,2,3
+            elif i == 3: target = 'val'   # Group 4
+            else:        target = 'test'  # Group 5
+            
+            sets[target][0].extend(samples)
+            sets[target][1].extend([label] * len(samples))
 
-        #  读取数据并切片
-        for mat_name in mat_files:
-            file_path = os.path.join(root, mat_name)
-            try:
-                data = scipy.io.loadmat(file_path)
-                signals = None
-                for key in data.keys():
-                    if 'DE_time' in key:
-                        signals = data[key].flatten()
-                        break
-                
-                if signals is not None:
-                    # 长度 1024，步长 1024 (0% 重叠)
-                    for i in range(0, len(signals) - 1024, 1024):
-                        X_all.append(signals[i : i + 1024])
-                        y_all.append(target_label)
-            except Exception as e:
-                print(f"无法读取 {mat_name}: {e}")
-
-    # 3. 转换
-    X_all = np.array(X_all, dtype=np.float32)[:, np.newaxis, :]
-    y_all = np.array(y_all, dtype=np.int64)
-
-    print(f"\n--- 准备划分数据集 (7:2:1) ---")
+    # 保存为 npy
+    for s in ['train', 'val', 'test']:
+        np.save(f'{SAVE_DIR}/x_{s}.npy', np.array(sets[s][0], dtype=np.float32))
+        np.save(f'{SAVE_DIR}/y_{s}.npy', np.array(sets[s][1], dtype=np.int64))
     
-    X_train, X_temp, y_train, y_temp = train_test_split(
-        X_all, y_all, test_size=0.3, random_state=42, shuffle=True, stratify=y_all
-    )
-    
-    X_val, X_test, y_val, y_test = train_test_split(
-        X_temp, y_temp, test_size=1/3, random_state=42, shuffle=True, stratify=y_temp
-    )
+    print(f"预处理完成！训练集: {len(sets['train'][1])}, 验证集: {len(sets['val'][1])}, 测试集: {len(sets['test'][1])}")
 
-    # 4. 保存文件
-    os.makedirs(x_save_dir, exist_ok=True)
-    os.makedirs(y_save_dir, exist_ok=True)
-
-    # 保存 1D 原始数据
-    np.save(os.path.join(x_save_dir, "X_train.npy"), X_train)
-    np.save(os.path.join(x_save_dir, "X_val.npy"), X_val)
-    np.save(os.path.join(x_save_dir, "X_test.npy"), X_test)
-    
-    # 保存标签
-    np.save(os.path.join(y_save_dir, "y_train.npy"), y_train)
-    np.save(os.path.join(y_save_dir, "y_val.npy"), y_val)
-    np.save(os.path.join(y_save_dir, "y_test.npy"), y_test)
-    
-    # 保存标签映射
-    with open(os.path.join(y_save_dir, "labels.txt"), "w") as f:
-        for name, lab in sorted(label_map.items(), key=lambda x: x[1]):
-            f.write(f"{lab}:{name}\n")
-
-    print(f"\n✅ 处理完成！1D数据已保存至: {x_save_dir}")
-    print(f"总样本数: {len(X_all)}")
-
-if __name__ == "__main__":
-    # 路径确保正确
-    prepare_data_flexible("dataset/12k_Drive_End_Bearing_Fault_Data", "dataset/processed")
+if __name__ == '__main__':
+    preprocess()
