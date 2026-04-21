@@ -5,13 +5,7 @@ import torch.nn as nn
 import torch.optim as optim
 import os
 from tqdm import tqdm
-from model import CNN_LSTM_Model
 import swanlab
-
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"当前使用的设备: {device}")
-
 
 
 class BearingDataset(Dataset):
@@ -95,9 +89,9 @@ def get_dataloaders_with_noise(data_dir, batch_size=32):
 
     return train_loader, val_loader, test_loader
 
-def train_model(model, train_loader, val_loader, epochs=50, lr=0.001, save_path="best_model.pth"):
-    # 2. 定义损失函数和优化器
-    criterion = nn.CrossEntropyLoss() # 多分类标准选择
+def train_model(model, train_loader, val_loader, epochs=50, lr=0.001, save_path="best_model.pth", device="cpu"):
+    # 损失函数和优化器
+    criterion = nn.CrossEntropyLoss() 
     optimizer = optim.Adam(model.parameters(), lr=lr)
     
     # 学习率衰减：如果 5 个 epoch 验证集 loss 不降，则 lr 减半

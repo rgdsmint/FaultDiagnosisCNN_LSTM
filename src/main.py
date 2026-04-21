@@ -9,17 +9,14 @@ import swanlab
 batchSize = 64
 lr = 0.001
 epoch = 50
-numClasses = 10  # 假设为 10 类故障
+numClasses = 10  # 10分类
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+datasetDir = "dataset/processed"   # 数据存放路径
+
 
 def main(is_Noise=False): 
-    # 1. 路径与配置参数
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    datasetDir = "dataset/processed"   # 数据存放路径
     modelSavePath = "best_cnn_lstm_" + ("with_noise" if is_Noise else "without_noise") + ".pth"
-    
-    # 2. 获取数据加载器
-    # 确保 data/processed 下已经有 X_train_2d_mapped.npy 等文件
-    print("--- 正在初始化数据加载器 ---")
+    print("--- 正在初始化数DataLoader ---")
     if is_Noise == False:
         print(">>> 选择了无噪声数据集")
         train_loader, val_loader, test_loader = get_dataloaders_without_noise(datasetDir, batch_size=batchSize)
@@ -27,12 +24,12 @@ def main(is_Noise=False):
         print(">>> 选择了有噪声数据集")
         train_loader, val_loader, test_loader = get_dataloaders_with_noise(datasetDir, batch_size=batchSize)
 
-    # 3. 初始化模型
+    # 初始化模型
     print("--- 正在构建 CNN-LSTM 网络 ---")
     model = CNN_LSTM_Model(num_classes=numClasses)
     model.to(device)
 
-    # 4. 开始训练
+    # 开始训练
     print("--- 开始训练流程 ---")
     train_model(
         model=model,
@@ -40,7 +37,8 @@ def main(is_Noise=False):
         val_loader=val_loader,
         epochs=epoch,
         lr=lr,
-        save_path=modelSavePath
+        save_path=modelSavePath,
+        device=device
     )
 
     validate(model, modelSavePath, test_loader)
@@ -48,7 +46,7 @@ def main(is_Noise=False):
     plot_confusion_matrix(model, test_loader, device, class_names)
 
 def validate(model, modelSavePath, test_loader):
-    # 5. 训练完成后，加载最优模型在【测试集】上做最终评估
+    # 训练完成后，加载最优模型在【测试集】上做最终评估
     print("\n--- 正在进行最终测试集评估 ---")
     model.load_state_dict(torch.load(modelSavePath))
     model.eval()

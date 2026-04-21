@@ -50,7 +50,7 @@ def process_noise_task(input_dir, output_dir, snr_db=0):
 
         # 保存到新路径 (不会覆盖原文件，因为目录不同)
         np.save(output_path, x_noised)
-        print(f"✅ 已保存带噪文件至: {output_path}")
+        print(f"已保存带噪文件至: {output_path}")
 
 if __name__ == "__main__":
     # 路径配置

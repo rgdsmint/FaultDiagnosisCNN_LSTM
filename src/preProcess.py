@@ -38,7 +38,7 @@ def prepare_data_flexible(root_dir, base_save_dir):
         target_label = label_map[cat_name]
         print(f"检测到类别: {cat_name.ljust(15)} | 标签: {target_label} | 文件数: {len(mat_files)}")
 
-        # 2. 读取数据并切片
+        #  读取数据并切片
         for mat_name in mat_files:
             file_path = os.path.join(root, mat_name)
             try:

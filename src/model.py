@@ -1,4 +1,3 @@
-import torch
 import torch.nn as nn
 
 class CNN_LSTM_Model(nn.Module):
@@ -8,19 +7,16 @@ class CNN_LSTM_Model(nn.Module):
         # 1. CNN 特征提取层
         # 输入形状: (Batch, 1, 64, 64)
         self.cnn = nn.Sequential(
-            # 第一层卷积：捕捉基础纹理
             nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.MaxPool2d(2, 2), # 输出: (32, 32, 32)
             
-            # 第二层卷积：提取更深层的特征组合
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(2, 2), # 输出: (64, 16, 16)
             
-            # 第三层卷积：进一步抽象
             nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(),
