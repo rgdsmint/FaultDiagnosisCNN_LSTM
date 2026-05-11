@@ -19,21 +19,21 @@
 
 - **多模态数据适配**：针对 HUSTmotor-multi-modal-dataset 数据集进行了适配，支持多维度数据的处理。
 - **混合架构**：采用 CNN 与 LSTM 级联的深度网络结构，最大化特征提取效率。
-- **数据预处理**：内置针对长时序信号的切片（Slice）、打标签（Labeling）以及快速傅里叶变换（FFT）等预处理功能。
+- **数据预处理**：内置针对长时序信号的切片、打标签以及添加高斯噪声等预处理功能。
 - **可视化与评估**：支持输出混淆矩阵（Confusion Matrix）、计算召回率（Recall）等多项关键性能指标。
 
 ## 📁 目录结构
 
 ```text
 FaultDiagnosisCNN_LSTM/
-├── data/               # 数据集存放目录 (需手动下载 HUSTmotor 数据集)
+├── dataset/            # 数据集存放目录 (需手动下载 HUSTmotor 数据集)
 ├── models/             # 模型定义文件
-│   └── cnn_lstm.py     # 核心 CNN-LSTM 模型架构
-├── utils/              # 工具函数
-│   ├── preprocess.py   # 数据预处理（FFT、切片与打标签等）
-│   └── dataset.py      # 自定义 PyTorch Dataset 类
-├── logs/               # 训练日志、指标评估与模型权重
-├── train.py            # 训练脚本
-├── test.py             # 测试与评估脚本
-├── requirements.txt    # 项目依赖
+├── src/              
+│   ├── preprocess.py   # 数据预处理
+    └── model.py        # 核心 CNN-LSTM 模型架构
+    └── train.py        # 训练核心流程脚本
+    └── main.py         # 训练与评估脚本
+    └── main.py         # 训练与评估脚本
+    └── app .py         # ui界面
+├── pyproject.toml      # 项目依赖
 └── README.md           # 项目说明文档
