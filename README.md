@@ -1,43 +1,39 @@
-# CWRU 轴承数据集术语说明文档
+# FaultDiagnosisCNN_LSTM - 基于 CNN-LSTM 的机械故障诊断系统
 
-在基于深度学习的机电设备故障诊断研究中，CWRU（凯斯西储大学）数据集是公认的标准基准。以下是该数据集中核心术语、缩写及其对应的中文含义说明。
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-1.10+-ee4c2c.svg)](https://pytorch.org/)
 
-## 1. 故障位置术语表 (Fault Location)
+本项目是一个基于深度学习的混合模型，结合了卷积神经网络（CNN）的空间特征提取能力和长短期记忆网络（LSTM）的时序建模能力，主要用于旋转机械（如电机）在动态环境下的智能故障诊断。
 
-| 缩写 | 全称 | 中文含义 | 备注 |
-| :--- | :--- | :--- | :--- |
-| **Normal** | Normal | **正常** | 无损伤状态，作为基准数据 |
-| **IR** | Inner Race | **内圈故障** | 损伤发生在轴承内圈轨道上 |
-| **OR** | Outer Race | **外圈故障** | 损伤发生在轴承外圈轨道上 |
-| **B** | Ball / Rolling Element | **滚动体故障** | 损伤发生在滚珠（或滚子）上 |
+本项目的数据集基于开源的 [HUSTmotor-multi-modal-dataset](https://github.com/CHAOZHAO-1/HUSTmotor-multi-modal-dataset)。
 
-## 2. 损伤直径说明 (Fault Severity)
+## 📌 项目简介
 
-数据集通过电火花加工模拟不同程度的损伤，数值代表损伤直径：
-* **0.007''**：轻微故障
-* **0.014''**：中等故障
-* **0.021''**：严重故障
-* *注意：单位均为英寸 (inch)。*
+针对机械设备在复杂工况下的故障特征提取难题，本项目设计了如下混合模型架构：
+1. **CNN 层**：自动提取振动等多模态信号中的空间与局部频率特征。
+2. **LSTM 层**：捕捉时序数据中的时间依赖性、长期趋势及动态演变。
+3. **分类层**：实现对电机不同工况及故障类型的高精度识别。
 
-## 3. 采集端与频率 (Position & Sampling)
+## 🚀 主要特性
 
-* **DE (Drive End)**：驱动端传感器信号。这是学术论文中**最常用**的数据源。
-* **FE (Fan End)**：风扇端传感器信号。
-* **12k / 48k**：代表采样频率（12kHz 或 48kHz）。通常 12k 数据已足够满足大多数分类任务。
+- **多模态数据适配**：针对 HUSTmotor-multi-modal-dataset 数据集进行了适配，支持多维度数据的处理。
+- **混合架构**：采用 CNN 与 LSTM 级联的深度网络结构，最大化特征提取效率。
+- **数据预处理**：内置针对长时序信号的切片（Slice）、打标签（Labeling）以及快速傅里叶变换（FFT）等预处理功能。
+- **可视化与评估**：支持输出混淆矩阵（Confusion Matrix）、计算召回率（Recall）等多项关键性能指标。
 
-## 4. 建议分类标签映射 (Label Mapping)
+## 📁 目录结构
 
-| 标签 (Label) | 故障描述 (Description) |
-| :---: | :--- |
-| 0 | Normal (正常) |
-| 1 | IR_0.007 (内圈轻微故障) |
-| 2 | IR_0.014 (内圈中等故障) |
-| 3 | IR_0.021 (内圈严重故障) |
-| 4 | B_0.007 (滚动体轻微故障) |
-| 5 | B_0.014 (滚动体中等故障) |
-| 6 | B_0.021 (滚动体严重故障) |
-| 7 | OR_0.007 (外圈轻微故障) |
-| 8 | OR_0.014 (外圈中等故障) |
-| 9 | OR_0.021 (外圈严重故障) |
-
----
+```text
+FaultDiagnosisCNN_LSTM/
+├── data/               # 数据集存放目录 (需手动下载 HUSTmotor 数据集)
+├── models/             # 模型定义文件
+│   └── cnn_lstm.py     # 核心 CNN-LSTM 模型架构
+├── utils/              # 工具函数
+│   ├── preprocess.py   # 数据预处理（FFT、切片与打标签等）
+│   └── dataset.py      # 自定义 PyTorch Dataset 类
+├── logs/               # 训练日志、指标评估与模型权重
+├── train.py            # 训练脚本
+├── test.py             # 测试与评估脚本
+├── requirements.txt    # 项目依赖
+└── README.md           # 项目说明文档
