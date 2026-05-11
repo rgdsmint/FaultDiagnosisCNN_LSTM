@@ -31,9 +31,8 @@ FaultDiagnosisCNN_LSTM/
 ├── src/              
 │   ├── preprocess.py   # 数据预处理
     └── model.py        # 核心 CNN-LSTM 模型架构
-    └── train.py        # 训练核心流程脚本
-    └── main.py         # 训练与评估脚本
-    └── main.py         # 训练与评估脚本
+    └── train.py        # 训练核心
+    └── main.py         # 主流程
     └── app .py         # ui界面
 ├── pyproject.toml      # 项目依赖
 └── README.md           # 项目说明文档
