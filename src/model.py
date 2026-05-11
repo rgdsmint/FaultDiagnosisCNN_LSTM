@@ -21,7 +21,7 @@ class MotorNet(nn.Module):
         self.lstm = nn.LSTM(128, 64, batch_first=True)
         self.classifier = nn.Sequential(
             nn.Linear(64, 32),
-            nn.ReLU(),
+            nn.ReLU(),  
             nn.Dropout(0.5),
             nn.Linear(32, num_classes)
         )
